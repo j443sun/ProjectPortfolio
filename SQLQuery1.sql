@@ -133,15 +133,25 @@ join  ProjectPortfolio..CovidVaccinations vac
 select *, (rolling_people_vaccinated/population) * 100
 from #PercentPopulationVaccinated
 
-create view PercentPopulationVaccinated as 
-select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
-, sum(convert(float, vac.new_vaccinations)) over (partition by dea.location order by dea.location, dea.date) /2 
-as rolling_people_vaccinated 
---create cte or temp table
+
+	
 from ProjectPortfolio..CovidDeaths dea
 join  ProjectPortfolio..CovidVaccinations vac
 	on dea.location = vac.location and dea.date = vac.date
 where dea.continent is not null
 
-select* 
-from PercentPopulationVaccinated
+	select dea.location, 
+	   vac.population_density, 
+	   max(cast(dea.total_deaths as int)) as max_deaths, 
+	   sum(cast(dea.hosp_patients as int)) as hospital_patients,
+	   sum(cast(dea.icu_patients as int)) as ICU_patients,
+	   max(cast(dea.total_deaths as float)) / sum(cast(dea.hosp_patients as float)) as deaths_hospital_rate,
+	   max(cast(dea.total_deaths as float)) / sum(cast(dea.ICU_patients as float)) as deaths_icu_rate,
+	   sum(cast(dea.icu_patients as float)) / sum(cast(dea.hosp_patients as float)) as hosp_rate
+
+from ProjectPortfolio..CovidDeaths dea
+join  ProjectPortfolio..CovidVaccinations vac
+	on dea.location = vac.location and dea.date = vac.date	
+where dea.icu_patients is not null and dea.hosp_patients is not null and population_density is not null
+GROUP BY dea.location, vac.population_density
+order by deaths_hospital_rate desc
